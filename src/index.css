@@ -115,6 +115,22 @@
   color: #333;
 }
 
+.correct {
+  background-color: green;
+  color: white;
+}
+
+.wrong {
+  background-color: red;
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
 /* Score Section */
 .score-section {
   font-size: 2rem;
@@ -209,4 +225,5 @@
     padding: 1.5rem;
   }
 }
+
 

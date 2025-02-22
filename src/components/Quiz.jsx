@@ -5,39 +5,34 @@ import '../index.css';
 const API_KEY = import.meta.env.VITE_QUIZ_API_KEY;
 const API_URL = `https://quizapi.io/api/v1/questions?apiKey=${API_KEY}&limit=10`;
 
-console.log("Loaded API Key:", API_KEY); 
-
-
-
 function App() {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
+  const [selectedOption, setSelectedOption] = useState(null); // Track selected option
 
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
         const response = await axios.get(API_URL);
         const formattedQuestions = response.data.map((question) => {
-          const incorrectAnswers = Object.values(question.answers)
-            .filter((answer) => answer !== null);
-          
+          const incorrectAnswers = Object.values(question.answers).filter((answer) => answer !== null);
           const correctAnswerKey = Object.keys(question.correct_answers).find(
             (key) => question.correct_answers[key] === "true"
           );
-          
           const correctAnswer = correctAnswerKey ? question.answers[correctAnswerKey.replace("_correct", "")] : null;
           
-          const options = correctAnswer ? [...incorrectAnswers, correctAnswer] : incorrectAnswers;
-          options.sort(() => Math.random() - 0.5);
+          let options = correctAnswer ? [...incorrectAnswers, correctAnswer] : incorrectAnswers;
           
-          return {
-            question: question.question,
-            options,
-            correctAnswer,
-          };
+          // ✅ Remove duplicate options
+          options = [...new Set(options)];
+
+          // ✅ Shuffle options
+          options.sort(() => Math.random() - 0.5);
+
+          return { question: question.question, options, correctAnswer };
         });
         setQuestions(formattedQuestions);
       } catch (error) {
@@ -52,7 +47,6 @@ function App() {
     const timer = setInterval(() => {
       setTimeLeft((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
     }, 1000);
-
     return () => clearInterval(timer);
   }, [timeLeft]);
 
@@ -61,6 +55,7 @@ function App() {
       setCurrentQuestionIndex((prevIndex) => {
         if (prevIndex + 1 < questions.length) {
           setTimeLeft(30);
+          setSelectedOption(null); // Reset selected option on new question
           return prevIndex + 1;
         } else {
           setShowScore(true);
@@ -70,19 +65,24 @@ function App() {
     }
   }, [timeLeft, questions.length]);
 
-  const handleAnswerOptionClick = (selectedOption) => {
-    if (selectedOption === questions[currentQuestionIndex].correctAnswer) {
+  const handleAnswerOptionClick = (option) => {
+    setSelectedOption(option); // Store selected option
+    if (option === questions[currentQuestionIndex].correctAnswer) {
       setScore(score + 1);
     }
-    setCurrentQuestionIndex((prevIndex) => {
-      if (prevIndex + 1 < questions.length) {
-        setTimeLeft(30);
-        return prevIndex + 1;
-      } else {
-        setShowScore(true);
-        return prevIndex;
-      }
-    });
+
+    setTimeout(() => {
+      setCurrentQuestionIndex((prevIndex) => {
+        if (prevIndex + 1 < questions.length) {
+          setTimeLeft(30);
+          setSelectedOption(null); // Reset selected option
+          return prevIndex + 1;
+        } else {
+          setShowScore(true);
+          return prevIndex;
+        }
+      });
+    }, 1000); // Delay to show correct/incorrect before moving to the next question
   };
 
   return (
@@ -114,8 +114,17 @@ function App() {
                 {questions[currentQuestionIndex].options.map((option, index) => (
                   <button 
                     key={index}
-                    className="answer-card animate-fadein"
+                    className={`answer-card animate-fadein ${
+                      selectedOption
+                        ? option === questions[currentQuestionIndex].correctAnswer
+                          ? "correct"
+                          : option === selectedOption
+                          ? "wrong"
+                          : ""
+                        : ""
+                    }`}
                     onClick={() => handleAnswerOptionClick(option)}
+                    disabled={selectedOption !== null} // Disable after selection
                   >
                     <span className="option-letter">{String.fromCharCode(65 + index)}</span>
                     <span className="option-text">{option}</span>
